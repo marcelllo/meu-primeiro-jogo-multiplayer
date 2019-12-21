@@ -10,22 +10,32 @@ const socketserver = socketio(server)
 app.use(express.static('public'))
 
 const game = createGame()
-// game.addPlayer({playerId: 'player1', playerX: 2, playerY: 2})
-// game.addPlayer({playerId: 'player2', playerX: 5, playerY: 9})
-// game.addPlayer({playerId: 'player3', playerX: 3, playerY: 5})
-// game.addFruit({fruitId: 'fruit1', fruitX: 3, fruitY: 3})
-// game.addFruit({fruitId: 'fruit2', fruitX: 6, fruitY: 6})
-// game.movePlayer({playerId: 'player1', keyPressed: 'ArrowRight'})
+game.start()
 
-console.log(game.state)
+game.subscribe((command) => {
+    console.log(`> Emitting : ${command.type}`)
+    socketserver.emit(command.type, command)
+})
 
 socketserver.on('connection', (socket) => {
     const playerId = socket.id
-    console.log(`> Player connected on Server with id: ${playerId}`)
+    console.log(`> Player connected: ${playerId}`)
 
-    // game.addPlayer({playerId, playerX: 0, playerY: 0})
+    game.addPlayer({playerId})
 
     socket.emit('setup', game.state)
+
+    socket.on('disconnect', () => {
+        console.log(`> Player disconnected: ${playerId}`)
+        game.removePlayer({playerId: playerId})
+    })
+
+    socket.on('move-player', (command) => {
+        command.playerId = playerId
+        command.type = 'move-player'
+
+        game.movePlayer(command)
+    })
 })
 
 server.listen(3000, () => {
